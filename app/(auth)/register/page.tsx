@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { createClient } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -24,6 +26,9 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+  const router = useRouter();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -37,9 +42,23 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
-    // Registration logic will go here
-    console.log(data);
-    setTimeout(() => setIsLoading(false), 1000);
+    setError(null);
+    const { error } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          full_name: data.name,
+        },
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push('/');
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -54,6 +73,7 @@ export default function RegisterPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {error && <p className="text-red-500">{error}</p>}
               <FormField
                 control={form.control}
                 name="name"

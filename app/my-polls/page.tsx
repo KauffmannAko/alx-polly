@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import withAuth from '@/components/auth/withAuth';
 
-export default function MyPollsPage() {
+function MyPollsPage() {
   // Mock data for user's polls
   const userPolls = [
     {
@@ -99,3 +100,5 @@ export default function MyPollsPage() {
     </div>
   );
 }
+
+export default withAuth(MyPollsPage);

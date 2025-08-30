@@ -1,30 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import withAuth from '@/components/auth/withAuth';
+import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@/lib/supabase';
 
-export default function ProfilePage() {
+function ProfilePage() {
+  const { user } = useAuth();
+  const supabase = createClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Mock user data
   const [userData, setUserData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    bio: 'Software developer and polling enthusiast',
+    name: '',
+    email: '',
+    bio: '',
     avatarUrl: '',
   });
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (user) {
+      setUserData({
+        name: user.user_metadata.full_name || '',
+        email: user.email || '',
+        bio: user.user_metadata.bio || '',
+        avatarUrl: user.user_metadata.avatar_url || '',
+      });
+    }
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+
     setIsSaving(true);
-    // Save profile logic will go here
-    setTimeout(() => {
-      setIsSaving(false);
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: userData.name,
+        bio: userData.bio,
+        avatar_url: userData.avatarUrl,
+      },
+    });
+
+    if (error) {
+      console.error('Error updating user:', error);
+    } else {
       setIsEditing(false);
-    }, 1000);
+    }
+    setIsSaving(false);
   };
 
   return (
@@ -40,7 +65,7 @@ export default function ProfilePage() {
             </div>
             <Avatar className="h-16 w-16">
               <AvatarImage src={userData.avatarUrl} alt={userData.name} />
-              <AvatarFallback>{userData.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{userData.name?.charAt(0)}</AvatarFallback>
             </Avatar>
           </div>
         </CardHeader>
@@ -59,14 +84,7 @@ export default function ProfilePage() {
           
           <div className="space-y-2">
             <label className="text-sm font-medium">Email</label>
-            {isEditing ? (
-              <Input 
-                value={userData.email} 
-                onChange={(e) => setUserData({...userData, email: e.target.value})} 
-              />
-            ) : (
-              <div className="p-2">{userData.email}</div>
-            )}
+            <div className="p-2 text-muted-foreground">{userData.email}</div>
           </div>
           
           <div className="space-y-2">
@@ -112,3 +130,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+export default withAuth(ProfilePage);
