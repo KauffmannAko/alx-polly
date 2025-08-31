@@ -1,36 +1,19 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase-server";
+import { cookies } from "next/headers";
 
-// Mock data for polls
-const mockPolls = [
-  {
-    id: "1",
-    title: "What's your favorite programming language?",
-    description: "Vote for your preferred programming language",
-    options: ["JavaScript", "Python", "Java", "C#", "Go"],
-    votes: 42,
-    createdAt: "2023-10-15",
-  },
-  {
-    id: "2",
-    title: "Best frontend framework?",
-    description: "Which frontend framework do you prefer working with?",
-    options: ["React", "Vue", "Angular", "Svelte"],
-    votes: 78,
-    createdAt: "2023-10-10",
-  },
-  {
-    id: "3",
-    title: "Favorite development tool?",
-    description: "What's your go-to development tool?",
-    options: ["VS Code", "IntelliJ IDEA", "Sublime Text", "Vim"],
-    votes: 36,
-    createdAt: "2023-10-05",
-  },
-];
+export default async function PollsPage() {
+  const supabase = await createClient(cookies());
+  const { data: polls, error } = await supabase.from("polls").select("*");
 
-export default function PollsPage() {
+  if (error) {
+    console.error("Error fetching polls:", error);
+    // Handle the error appropriately
+    return <div>Error fetching polls.</div>;
+  }
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
@@ -41,7 +24,7 @@ export default function PollsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockPolls.map((poll) => (
+        {(polls || []).map((poll) => (
           <Card key={poll.id} className="flex flex-col">
             <CardHeader>
               <CardTitle className="line-clamp-2">{poll.title}</CardTitle>
@@ -49,15 +32,15 @@ export default function PollsPage() {
             </CardHeader>
             <CardContent className="flex-grow">
               <p className="text-sm text-muted-foreground mb-2">
-                {poll.options.length} options • {poll.votes} votes
+                {(poll.options || []).length} options • {poll.votes || 0} votes
               </p>
               <div className="space-y-1">
-                {poll.options.slice(0, 3).map((option, index) => (
+                {(poll.options || []).slice(0, 3).map((option: string, index: number) => (
                   <div key={index} className="text-sm">{option}</div>
                 ))}
-                {poll.options.length > 3 && (
+                {(poll.options || []).length > 3 && (
                   <div className="text-sm text-muted-foreground">
-                    +{poll.options.length - 3} more options
+                    +{(poll.options || []).length - 3} more options
                   </div>
                 )}
               </div>

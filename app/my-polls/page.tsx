@@ -4,38 +4,33 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import withAuth from '@/components/auth/withAuth';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase';
 
 function MyPollsPage() {
-  // Mock data for user's polls
-  const userPolls = [
-    {
-      id: '1',
-      title: "What's your favorite programming language?",
-      description: "Vote for your preferred programming language",
-      options: ["JavaScript", "Python", "Java", "C#", "Go"],
-      votes: 42,
-      createdAt: "2023-10-15",
-      active: true,
-    },
-    {
-      id: '2',
-      title: "Best frontend framework?",
-      description: "Which frontend framework do you prefer working with?",
-      options: ["React", "Vue", "Angular", "Svelte"],
-      votes: 78,
-      createdAt: "2023-10-10",
-      active: true,
-    },
-    {
-      id: '3',
-      title: "Favorite development tool?",
-      description: "What's your go-to development tool?",
-      options: ["VS Code", "IntelliJ IDEA", "Sublime Text", "Vim"],
-      votes: 36,
-      createdAt: "2023-10-05",
-      active: false,
-    },
-  ];
+  const { user } = useAuth();
+  const [polls, setPolls] = useState<any[]>([]);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchPolls = async () => {
+      if (user) {
+        const { data, error } = await supabase
+          .from('polls')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error fetching polls:', error);
+        } else {
+          setPolls(data);
+        }
+      }
+    };
+
+    fetchPolls();
+  }, [user, supabase]);
 
   const handleDeletePoll = (id: string) => {
     // Delete poll logic will go here
@@ -51,7 +46,7 @@ function MyPollsPage() {
         </Button>
       </div>
 
-      {userPolls.length === 0 ? (
+      {polls.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">You haven't created any polls yet.</p>
           <Button asChild>
@@ -60,7 +55,7 @@ function MyPollsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {userPolls.map((poll) => (
+          {(polls || []).map((poll) => (
             <Card key={poll.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -75,10 +70,10 @@ function MyPollsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-2">
-                  {poll.options.length} options • {poll.votes} votes
+                  {(poll.options || []).length} options • {poll.votes || 0} votes
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Created on {new Date(poll.createdAt).toLocaleDateString()}
+                  Created on {new Date(poll.created_at).toLocaleDateString()}
                 </p>
               </CardContent>
               <CardFooter className="flex justify-between gap-2">
