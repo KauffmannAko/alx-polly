@@ -45,9 +45,12 @@ export default async function PollsPage() {
                 )}
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-2">
               <Button asChild variant="outline" className="w-full">
-                <Link href={`/polls/${poll.id}`}>View Poll</Link>
+                <Link href={`/polls/${poll.id}`}>Vote on Poll</Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full">
+                <Link href={`/polls/${poll.id}/results`}>📊 View Results</Link>
               </Button>
             </CardFooter>
           </Card>

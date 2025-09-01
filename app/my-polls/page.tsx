@@ -32,9 +32,27 @@ function MyPollsPage() {
     fetchPolls();
   }, [user, supabase]);
 
-  const handleDeletePoll = (id: string) => {
-    // Delete poll logic will go here
-    console.log(`Delete poll with id: ${id}`);
+  const handleDeletePoll = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this poll?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/polls/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete poll');
+      }
+      
+      // Remove the deleted poll from the state
+      setPolls(polls.filter(poll => poll.id !== id));
+    } catch (error) {
+      console.error('Error deleting poll:', error);
+      alert('Failed to delete poll. Please try again.');
+    }
   };
 
   return (
@@ -76,16 +94,24 @@ function MyPollsPage() {
                   Created on {new Date(poll.created_at).toLocaleDateString()}
                 </p>
               </CardContent>
-              <CardFooter className="flex justify-between gap-2">
-                <Button asChild variant="outline" className="flex-1">
-                  <Link href={`/polls/${poll.id}`}>View Results</Link>
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="icon"
-                  onClick={() => handleDeletePoll(poll.id)}
-                >
-                  ✕
+              <CardFooter className="flex flex-col gap-2">
+                <div className="flex justify-between gap-2 w-full">
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href={`/polls/${poll.id}`}>Vote</Link>
+                  </Button>
+                  <Button asChild variant="secondary" className="flex-1" style={{ backgroundColor: '#4f46e5', color: 'white' }}>
+                    <Link href={`/edit/${poll.id}`}>✏️ Edit</Link>
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="icon"
+                    onClick={() => handleDeletePoll(poll.id)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+                <Button asChild variant="ghost" className="w-full">
+                  <Link href={`/polls/${poll.id}/results`}>📊 View Results</Link>
                 </Button>
               </CardFooter>
             </Card>

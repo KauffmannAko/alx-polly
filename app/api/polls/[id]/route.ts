@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 
 // GET /api/polls/[id] - Get a specific poll
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = await params;
   
   const supabase = await createClient();
   
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // PUT /api/polls/[id] - Update a poll
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = await params;
   
   const supabase = await createClient();
   
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 // DELETE /api/polls/[id] - Delete a poll
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = await params;
   
   const supabase = await createClient();
   
