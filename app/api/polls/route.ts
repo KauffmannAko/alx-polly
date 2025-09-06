@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
-// GET /api/polls - Get all polls
+/**
+ * GET /api/polls - Get all polls
+ */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data, error } = await supabase.from('polls').select('*');
@@ -13,10 +15,14 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ polls: data });
 }
 
-// POST /api/polls - Create a new poll
+/**
+ * POST /api/polls - Create a new poll
+ * Requires authentication
+ */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  // Get the current user
+  
+  // Check authentication
   const { data, error: userError } = await supabase.auth.getUser();
   const user = data?.user;
   
@@ -29,19 +35,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Parse the request body
-    let body;
-    try {
-      body = await request.json();
-    } catch (parseError) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
-    }
-    
+    const body = await request.json();
     const { title, description, options, duration } = body;
 
+    // Validate required fields
     if (!title || !options || options.length < 2) {
       return NextResponse.json(
         { error: 'Invalid poll data. Title and at least 2 options are required.' },
@@ -49,14 +46,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert the poll
+    // Create poll
     const { data: pollData, error: pollError } = await supabase
       .from('polls')
       .insert({
         title,
         description,
         user_id: user.id,
-        duration: parseInt(duration, 10) || 7, // Default to 7 days
+        duration: parseInt(duration, 10) || 7,
       })
       .select()
       .single();
@@ -65,7 +62,7 @@ export async function POST(request: NextRequest) {
       throw new Error(pollError.message);
     }
 
-    // Insert the options
+    // Create poll options
     const optionsToInsert = options.map((optionText: string) => ({
       text: optionText,
       poll_id: pollData.id,
@@ -76,7 +73,7 @@ export async function POST(request: NextRequest) {
       .insert(optionsToInsert);
 
     if (optionsError) {
-      // If options fail, clean up the created poll
+      // Cleanup if options creation fails
       await supabase.from('polls').delete().eq('id', pollData.id);
       throw new Error(optionsError.message);
     }

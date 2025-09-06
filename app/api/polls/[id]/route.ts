@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
-// GET /api/polls/[id] - Get a specific poll
+/**
+ * GET /api/polls/[id] - Get a specific poll with options
+ */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = await params;
-  
   const supabase = await createClient();
   
-  // Get poll with its options
   const { data: poll, error: pollError } = await supabase
     .from('polls')
     .select('*, options(*)')
@@ -25,13 +25,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json({ poll });
 }
 
-// PUT /api/polls/[id] - Update a poll
+/**
+ * PUT /api/polls/[id] - Update a poll
+ * Requires authentication and ownership
+ */
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = await params;
-  
   const supabase = await createClient();
   
-  // Get the current user
+  // Check authentication
   const { data, error: userError } = await supabase.auth.getUser();
   const user = data?.user;
   
@@ -44,20 +46,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
   
   try {
-    // Parse the request body
-    let body;
-    try {
-      body = await request.json();
-    } catch (parseError) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
-    }
-    
+    const body = await request.json();
     const { title, description } = body;
     
-    // Check if poll exists and belongs to user
+    // Check ownership
     const { data: existingPoll, error: pollCheckError } = await supabase
       .from('polls')
       .select('user_id')
@@ -72,7 +64,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Unauthorized to update this poll' }, { status: 403 });
     }
     
-    // Update the poll
+    // Update poll
     const { data: updatedPoll, error: updateError } = await supabase
       .from('polls')
       .update({ title, description, updated_at: new Date().toISOString() })
@@ -85,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     
     return NextResponse.json({ 
-      message: `Poll updated successfully`,
+      message: 'Poll updated successfully',
       poll: updatedPoll
     });
   } catch (error) {
@@ -96,13 +88,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-// DELETE /api/polls/[id] - Delete a poll
+/**
+ * DELETE /api/polls/[id] - Delete a poll
+ * Requires authentication and ownership
+ */
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = await params;
-  
   const supabase = await createClient();
   
-  // Get the current user
+  // Check authentication
   const { data, error: userError } = await supabase.auth.getUser();
   const user = data?.user;
   
@@ -114,7 +108,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   
-  // Check if poll exists and belongs to user
+  // Check ownership
   const { data: existingPoll, error: pollCheckError } = await supabase
     .from('polls')
     .select('user_id')
@@ -129,8 +123,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: 'Unauthorized to delete this poll' }, { status: 403 });
   }
   
-  // Delete the poll and its options
-  // First delete the options
+  // Delete options first, then poll
   const { error: optionsDeleteError } = await supabase
     .from('options')
     .delete()
@@ -140,7 +133,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: optionsDeleteError.message }, { status: 500 });
   }
   
-  // Then delete the poll
   const { error: pollDeleteError } = await supabase
     .from('polls')
     .delete()

@@ -19,6 +19,9 @@ const createPollSchema = z.object({
 
 type CreatePollFormValues = z.infer<typeof createPollSchema>;
 
+/**
+ * Create Poll Page - Form for creating new polls
+ */
 function CreatePollPage() {
   const [options, setOptions] = useState(['', '']);
   const [isSubmitting, setIsSubmitting] = useState(false);

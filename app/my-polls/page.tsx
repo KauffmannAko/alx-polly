@@ -8,6 +8,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 
+/**
+ * My Polls Page - Dashboard showing user's created polls
+ */
 function MyPollsPage() {
   const { user } = useAuth();
   const [polls, setPolls] = useState<any[]>([]);
@@ -47,7 +50,7 @@ function MyPollsPage() {
         throw new Error(errorData.error || 'Failed to delete poll');
       }
       
-      // Remove the deleted poll from the state
+      // Remove from local state
       setPolls(polls.filter(poll => poll.id !== id));
     } catch (error) {
       console.error('Error deleting poll:', error);

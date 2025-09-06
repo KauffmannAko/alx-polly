@@ -1,10 +1,9 @@
 # ALX Polly - Simple Polling App
 
-ALX Polly is a Next.js application that allows users to create, share, and participate in polls with ease. Built with modern web technologies and integrated with Supabase for backend services.
+A modern polling application built with Next.js and Supabase that allows users to create, share, and vote on polls.
 
 ## Features
 
-- **User Authentication**: Register, login, and manage your profile
 - **Create Polls**: Design custom polls with multiple options
 - **Vote on Polls**: Participate in polls with a simple interface
 - **View Results**: See real-time results with visual representations
@@ -45,7 +44,7 @@ ALX Polly is a Next.js application that allows users to create, share, and parti
 - **Authentication**: Supabase Auth
 - **Database**: Supabase PostgreSQL
 
-## Getting Started
+## Quick Start
 
 1. Clone the repository
 2. Install dependencies: `npm install`
@@ -54,102 +53,119 @@ ALX Polly is a Next.js application that allows users to create, share, and parti
 5. Run the development server: `npm run dev`
 6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## API Routes
+2. **Set up Supabase**
+   - Create a new Supabase project
+   - Create the required tables (see Database Schema below)
+   - Get your project URL and anon key
 
-### Polls
+3. **Environment variables**
+   Create `.env.local`:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-- `GET /api/polls` - Get all polls
-- `POST /api/polls` - Create a new poll
-- `GET /api/polls/[id]` - Get a specific poll
-- `PUT /api/polls/[id]` - Update a poll
-- `DELETE /api/polls/[id]` - Delete a poll
-- `POST /api/polls/[id]/vote` - Vote on a poll
-
-## Usage
-
-1. **Register/Login**: Create an account or log in to access all features
-2. **Create a Poll**: Navigate to the Create page and fill out the form
-3. **Vote**: Visit any poll and select an option to vote
-4. **View Results**: See real-time results after voting
-5. **Manage Polls**: Access your created polls from the My Polls page
-
-## Environment Setup
-
-Create a `.env.local` file in the root directory with the following variables:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+4. **Run the app**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000)
 
 ## Database Schema
 
-The application uses the following tables in Supabase:
+Create these tables in your Supabase project:
 
-- **polls**: Stores poll information (title, description, user_id, duration)
-- **options**: Stores poll options (text, poll_id)
-- **votes**: Records user votes (user_id, poll_id, option_id)
+```sql
+-- Polls table
+CREATE TABLE polls (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  duration INTEGER DEFAULT 7,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-## Recent Updates
+-- Options table
+CREATE TABLE options (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  text TEXT NOT NULL,
+  poll_id UUID REFERENCES polls(id) ON DELETE CASCADE
+);
 
-- Fixed asynchronous cookie handling in Supabase server client
-  - Updated `cookies()` function to be properly awaited
-  - Made cookie methods (`set` and `remove`) async with proper awaits
-- Improved error handling in API routes
-  - Added proper error handling for user authentication
-  - Enhanced request body parsing with try/catch blocks
-  - Implemented comprehensive validation for all inputs
-- Implemented proper authentication checks for poll operations
-  - Added user ownership verification for update/delete operations
-  - Prevented duplicate votes from the same user
-- Added comprehensive validation for poll creation and voting
-  - Ensured options belong to the correct poll
-  - Validated required fields before processing
+-- Votes table
+CREATE TABLE votes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+  option_id UUID REFERENCES options(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(poll_id, user_id)
+);
+```
 
-## Supabase Integration
+## API Endpoints
 
-The application uses two Supabase client implementations:
+- `GET /api/polls` - Get all polls
+- `POST /api/polls` - Create a poll (requires auth)
+- `GET /api/polls/[id]` - Get specific poll
+- `PUT /api/polls/[id]` - Update poll (requires ownership)
+- `DELETE /api/polls/[id]` - Delete poll (requires ownership)
+- `POST /api/polls/[id]/vote` - Vote on poll (requires auth)
 
-1. **Browser Client** (`lib/supabase.ts`): Used for client-side operations
-2. **Server Client** (`lib/supabase-server.ts`): Used for server-side API routes with proper cookie handling
+## Project Structure
 
-## Troubleshooting
+```
+app/
+├── (auth)/          # Login/register pages
+├── api/             # API routes
+├── create/          # Create poll page
+├── my-polls/        # User dashboard
+├── polls/           # Poll listing and voting
+└── profile/         # User profile
 
-### Common Issues
+components/
+├── auth/            # Authentication components
+├── layout/          # Layout components
+└── ui/              # Reusable UI components
 
-1. **Poll Creation 500 Error**
-   - **Cause**: Asynchronous cookie handling in Supabase server client
-   - **Solution**: Ensure all cookie operations are properly awaited
-   - **Fixed in**: Recent update to `lib/supabase-server.ts`
+lib/
+├── supabase.ts      # Browser client
+└── supabase-server.ts # Server client
+```
 
-2. **Permission Issues with .next Directory**
-   - **Cause**: File locking by other processes
-   - **Solution**: Close all instances of the application and delete the `.next` directory before restarting
+## Usage
 
-3. **Authentication Errors**
-   - **Cause**: Missing or expired session
-   - **Solution**: Log out and log back in to refresh your session
+1. **Register/Login** - Create an account to access all features
+2. **Create Poll** - Go to `/create` to make a new poll
+3. **Vote** - Visit any poll to vote on options
+4. **Manage** - Use `/my-polls` to manage your polls
+5. **Results** - View real-time results after voting
 
-## Future Enhancements
+## Development
 
-- Add real-time updates with WebSockets
-- Implement poll sharing functionality
-- Add analytics for poll creators
-- Enhance UI with animations and transitions
-- Add support for image options in polls
-- Implement poll categories and tags
-- created polls are not displayed on screen - bug to be fixed
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
+```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details.

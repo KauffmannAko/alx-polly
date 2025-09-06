@@ -14,12 +14,16 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
 })
 
+/**
+ * Authentication provider that manages user state across the app
+ */
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const supabase = createClient()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Get current session on mount
     const getUser = async () => {
       const {
         data: { session },
@@ -32,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     getUser()
 
+    // Listen for auth state changes (login/logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null)
@@ -51,4 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   )
 }
 
+/**
+ * Hook to access authentication state
+ */
 export const useAuth = () => useContext(AuthContext)

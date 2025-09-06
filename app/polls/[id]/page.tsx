@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 
+/**
+ * Poll Detail Page - Display poll and handle voting
+ */
 export default function PollDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const [poll, setPoll] = useState<any>(null);
@@ -31,7 +34,7 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
         
         const data = await response.json();
         
-        // Get votes for this poll
+        // Get vote counts
         const { data: votesData, error: votesError } = await supabase
           .from('votes')
           .select('option_id')
@@ -59,7 +62,7 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
         
         setPoll(pollWithVotes);
         
-        // Check if user has already voted
+        // Check if user already voted
         const { data: user } = await supabase.auth.getUser();
         if (user?.user) {
           const { data: userVote } = await supabase
@@ -104,7 +107,7 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
       
       setHasVoted(true);
       
-      // Refresh poll data to show updated results
+      // Refresh poll data
       const pollResponse = await fetch(`/api/polls/${id}`);
       const { poll: updatedPoll } = await pollResponse.json();
       setPoll(updatedPoll);

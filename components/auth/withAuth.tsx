@@ -4,6 +4,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
+/**
+ * HOC that protects routes requiring authentication
+ * Redirects to login if user is not authenticated
+ */
 export default function withAuth<P extends object>(
   WrappedComponent: React.ComponentType<P>
 ) {
