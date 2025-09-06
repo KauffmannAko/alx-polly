@@ -9,32 +9,6 @@ A modern polling application built with Next.js and Supabase that allows users t
 - **View Results**: See real-time results with visual representations
 - **Manage Polls**: View, edit, and delete your created polls
 
-## Project Structure
-
-```
-├── app/
-│   ├── (auth)/                  # Authentication routes
-│   │   ├── login/               # Login page
-│   │   ├── register/            # Registration page
-│   │   └── layout.tsx           # Auth layout
-│   ├── api/                     # API routes
-│   │   ├── auth/                # Auth API
-│   │   └── polls/               # Polls API
-│   ├── create/                  # Create poll page
-│   ├── my-polls/                # User's polls page
-│   ├── polls/                   # Polls listing
-│   │   └── [id]/                # Individual poll page
-│   ├── profile/                 # User profile page
-│   ├── globals.css              # Global styles
-│   ├── layout.tsx               # Root layout
-│   └── page.tsx                 # Homepage
-├── components/
-│   ├── layout/                  # Layout components
-│   │   └── navbar.tsx           # Navigation bar
-│   └── ui/                      # UI components (Shadcn)
-├── types/                       # TypeScript type definitions
-└── lib/                         # Utility functions
-```
 
 ## Tech Stack
 
