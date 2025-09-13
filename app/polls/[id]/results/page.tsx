@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 import withAuth from '@/components/auth/withAuth';
 
+import Loader from '@/components/ui/loader';
+
 function PollResultsPage({ params }: { params: { id: string } }) {
   const { id } = React.use(params);
   const [poll, setPoll] = useState<any>(null);
@@ -70,11 +72,7 @@ function PollResultsPage({ params }: { params: { id: string } }) {
   };
 
   if (loading) {
-    return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p>Loading poll results...</p>
-      </div>
-    );
+    return <Loader />;
   }
 
   if (error) {

@@ -7,6 +7,7 @@ import withAuth from '@/components/auth/withAuth';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import Loader from '@/components/ui/loader';
 
 /**
  * My Polls Page - Dashboard showing user's created polls
@@ -14,6 +15,7 @@ import { createClient } from '@/lib/supabase';
 function MyPollsPage() {
   const { user } = useAuth();
   const [polls, setPolls] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
@@ -29,6 +31,7 @@ function MyPollsPage() {
         } else {
           setPolls(data);
         }
+        setLoading(false);
       }
     };
 
@@ -57,6 +60,10 @@ function MyPollsPage() {
       alert('Failed to delete poll. Please try again.');
     }
   };
+
+  if (loading) {
+    return <Loader />;
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">

@@ -1,11 +1,4 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { use } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase';
-import Link from 'next/link';
+import Loader from '@/components/ui/loader';
 
 /**
  * Poll Detail Page - Display poll and handle voting
@@ -125,11 +118,7 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
   };
 
   if (loading) {
-    return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p>Loading poll...</p>
-      </div>
-    );
+    return <Loader />;
   }
 
   if (error) {
