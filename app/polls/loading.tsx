@@ -1,6 +1,36 @@
-// app/polls/loading.tsx
-import Loader from '@/components/ui/loader';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function Loading() {
-  return <Loader />;
+export default function PollsLoading() {
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-8">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i} className="flex flex-col">
+            <CardHeader>
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent className="flex-grow">
+              <Skeleton className="h-4 w-1/2 mb-2" />
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 }

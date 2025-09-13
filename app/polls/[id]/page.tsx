@@ -1,3 +1,11 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { use } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase';
 import Loader from '@/components/ui/loader';
 
 /**
@@ -19,38 +27,42 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
     async function fetchPollData() {
       try {
         setLoading(true);
-        const response = await fetch(`/api/polls/${id}`);
         
-        if (!response.ok) {
+        // Optimized query: Get poll with options and vote counts in one query
+        const { data: pollData, error: pollError } = await supabase
+          .from('polls')
+          .select(`
+            *,
+            options(id, text),
+            votes(option_id, user_id)
+          `)
+          .eq('id', id)
+          .single();
+          
+        if (pollError) {
           throw new Error('Failed to fetch poll data');
         }
         
-        const data = await response.json();
-        
-        // Get vote counts
-        const { data: votesData, error: votesError } = await supabase
-          .from('votes')
-          .select('option_id')
-          .eq('poll_id', id);
-          
-        if (votesError) {
-          throw new Error('Failed to fetch votes');
+        if (!pollData) {
+          throw new Error('Poll not found');
         }
         
         // Count votes per option
         const voteCount: Record<string, number> = {};
-        votesData.forEach((vote) => {
+        const totalVotes = pollData.votes?.length || 0;
+        
+        pollData.votes?.forEach((vote: any) => {
           voteCount[vote.option_id] = (voteCount[vote.option_id] || 0) + 1;
         });
         
         // Add vote counts to options
         const pollWithVotes = {
-          ...data.poll,
-          options: data.poll.options.map((option: any) => ({
+          ...pollData,
+          options: pollData.options?.map((option: any) => ({
             ...option,
             votes: voteCount[option.id] || 0
-          })),
-          totalVotes: votesData.length
+          })) || [],
+          totalVotes
         };
         
         setPoll(pollWithVotes);
@@ -58,13 +70,8 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
         // Check if user already voted
         const { data: user } = await supabase.auth.getUser();
         if (user?.user) {
-          const { data: userVote } = await supabase
-            .from('votes')
-            .select('id')
-            .eq('poll_id', id)
-            .eq('user_id', user.user.id);
-            
-          if (userVote && userVote.length > 0) {
+          const userVote = pollData.votes?.find((vote: any) => vote.user_id === user.user.id);
+          if (userVote) {
             setUserVoted(true);
             setHasVoted(true);
           }

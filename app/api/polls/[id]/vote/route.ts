@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase-server';
  * Requires authentication, prevents duplicate voting
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = await params;
   const supabase = await createClient();
   
   // Check authentication

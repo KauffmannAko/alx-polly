@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
 import { User } from '@supabase/supabase-js'
 
@@ -18,11 +18,12 @@ const AuthContext = createContext<AuthContextType>({
  * Authentication provider that manages user state across the app
  */
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const supabase = createClient()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const supabase = createClient()
+    
     // Get current session on mount
     const getUser = async () => {
       const {
@@ -47,10 +48,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [])
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    user,
+    loading
+  }), [user, loading])
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

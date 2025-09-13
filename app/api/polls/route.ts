@@ -6,13 +6,34 @@ import { createClient } from '@/lib/supabase-server';
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from('polls').select('*');
+  
+  // Optimized query with proper joins
+  const { data, error } = await supabase
+    .from('polls')
+    .select(`
+      *,
+      options(id, text),
+      votes(count)
+    `)
+    .order('created_at', { ascending: false });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ polls: data });
+  // Process the data to include vote counts
+  const polls = data?.map(poll => ({
+    ...poll,
+    votes: poll.votes?.[0]?.count || 0,
+    options: poll.options || []
+  })) || [];
+
+  const response = NextResponse.json({ polls });
+  
+  // Add caching headers
+  response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+  
+  return response;
 }
 
 /**

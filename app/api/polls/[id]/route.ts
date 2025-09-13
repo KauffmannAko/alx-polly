@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
 /**
- * GET /api/polls/[id] - Get a specific poll with options
+ * GET /api/polls/[id] - Get a specific poll with options and vote counts
  */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = await params;
   const supabase = await createClient();
   
+  // Optimized query with vote counts
   const { data: poll, error: pollError } = await supabase
     .from('polls')
-    .select('*, options(*)')
+    .select(`
+      *,
+      options(id, text),
+      votes(option_id)
+    `)
     .eq('id', id)
     .single();
     
@@ -21,8 +26,31 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (!poll) {
     return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
   }
+
+  // Count votes per option
+  const voteCount: Record<string, number> = {};
+  const totalVotes = poll.votes?.length || 0;
   
-  return NextResponse.json({ poll });
+  poll.votes?.forEach((vote: any) => {
+    voteCount[vote.option_id] = (voteCount[vote.option_id] || 0) + 1;
+  });
+  
+  // Add vote counts to options
+  const pollWithVotes = {
+    ...poll,
+    options: poll.options?.map((option: any) => ({
+      ...option,
+      votes: voteCount[option.id] || 0
+    })) || [],
+    totalVotes
+  };
+
+  const response = NextResponse.json({ poll: pollWithVotes });
+  
+  // Add caching headers
+  response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+  
+  return response;
 }
 
 /**

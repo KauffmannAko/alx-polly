@@ -1,101 +1,55 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-server';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import withAuth from '@/components/auth/withAuth';
+import { notFound } from 'next/navigation';
 
-import Loader from '@/components/ui/loader';
+interface PollResultsPageProps {
+  params: { id: string };
+}
 
-function PollResultsPage({ params }: { params: { id: string } }) {
-  const { id } = React.use(params);
-  const [poll, setPoll] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+export default async function PollResultsPage({ params }: PollResultsPageProps) {
+  const { id } = await params;
+  const supabase = await createClient(cookies());
 
-  useEffect(() => {
-    async function fetchPollData() {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/polls/${id}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch poll data');
-        }
-        
-        const data = await response.json();
-        
-        // Get votes for this poll
-        const { data: votesData, error: votesError } = await supabase
-          .from('votes')
-          .select('option_id')
-          .eq('poll_id', id);
-          
-        if (votesError) {
-          throw new Error('Failed to fetch votes');
-        }
-        
-        // Count votes per option
-        const voteCount: Record<string, number> = {};
-        votesData.forEach((vote) => {
-          voteCount[vote.option_id] = (voteCount[vote.option_id] || 0) + 1;
-        });
-        
-        // Add vote counts to options
-        const pollWithVotes = {
-          ...data.poll,
-          options: data.poll.options.map((option: any) => ({
-            ...option,
-            votes: voteCount[option.id] || 0
-          })),
-          totalVotes: votesData.length
-        };
-        
-        setPoll(pollWithVotes);
-      } catch (err: any) {
-        console.error('Error fetching poll data:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    fetchPollData();
-  }, [id, supabase]);
+  // Optimized query: Get poll with options and vote counts in one query
+  const { data: pollData, error } = await supabase
+    .from('polls')
+    .select(`
+      *,
+      options(id, text),
+      votes(option_id)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error || !pollData) {
+    notFound();
+  }
+
+  // Count votes per option
+  const voteCount: Record<string, number> = {};
+  const totalVotes = pollData.votes?.length || 0;
+  
+  pollData.votes?.forEach((vote: any) => {
+    voteCount[vote.option_id] = (voteCount[vote.option_id] || 0) + 1;
+  });
+  
+  // Add vote counts to options
+  const poll = {
+    ...pollData,
+    options: pollData.options?.map((option: any) => ({
+      ...option,
+      votes: voteCount[option.id] || 0
+    })) || [],
+    totalVotes
+  };
 
   const calculatePercentage = (votes: number) => {
     if (!poll || poll.totalVotes === 0) return 0;
     return Math.round((votes / poll.totalVotes) * 100);
   };
-
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p className="text-red-500">Error: {error}</p>
-        <Button asChild className="mt-4">
-          <Link href="/polls">Back to Polls</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  if (!poll) {
-    return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p>Poll not found</p>
-        <Button asChild className="mt-4">
-          <Link href="/polls">Back to Polls</Link>
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -154,5 +108,3 @@ function PollResultsPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-export default withAuth(PollResultsPage);

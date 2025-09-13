@@ -6,37 +6,28 @@ import { cookies } from "next/headers";
 
 export default async function PollsPage() {
   const supabase = await createClient(cookies());
-  const { data: pollsData, error } = await supabase.from("polls").select("*");
+  
+  // Optimized query: Get polls with options and vote counts in a single query
+  const { data: pollsData, error } = await supabase
+    .from("polls")
+    .select(`
+      *,
+      options(id, text),
+      votes(count)
+    `)
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error("Error fetching polls:", error);
-    // Handle the error appropriately
     return <div>Error fetching polls.</div>;
   }
 
-  // Fetch vote counts for all polls
-  const pollIds = pollsData.map(p => p.id);
-  const { data: votesData, error: votesError } = await supabase
-    .from('votes')
-    .select('poll_id')
-    .in('poll_id', pollIds);
-
-  if (votesError) {
-    console.error("Error fetching votes:", votesError);
-    return <div>Error fetching vote counts.</div>;
-  }
-
-  // Create a map of pollId to vote count
-  const voteCounts = votesData.reduce((acc, vote) => {
-    acc[vote.poll_id] = (acc[vote.poll_id] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Combine polls with their vote counts
-  const polls = pollsData.map(poll => ({
+  // Process the data to include vote counts
+  const polls = pollsData?.map(poll => ({
     ...poll,
-    votes: voteCounts[poll.id] || 0,
-  }));
+    votes: poll.votes?.[0]?.count || 0,
+    options: poll.options || []
+  })) || [];
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -59,8 +50,8 @@ export default async function PollsPage() {
                 {(poll.options || []).length} options • {poll.votes || 0} votes
               </p>
               <div className="space-y-1">
-                {(poll.options || []).slice(0, 3).map((option: string, index: number) => (
-                  <div key={index} className="text-sm">{option}</div>
+                {(poll.options || []).slice(0, 3).map((option: {id: string, text: string}, index: number) => (
+                  <div key={option.id} className="text-sm">{option.text}</div>
                 ))}
                 {(poll.options || []).length > 3 && (
                   <div className="text-sm text-muted-foreground">
