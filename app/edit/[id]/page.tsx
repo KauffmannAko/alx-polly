@@ -39,17 +39,45 @@ function EditPollPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchPoll = async () => {
       setIsLoading(true);
+      setError(null);
+      
       try {
+        console.log('Fetching poll for editing, ID:', id);
+        
+        if (!id) {
+          throw new Error('Invalid poll ID');
+        }
+        
         const response = await fetch(`/api/polls/${id}`);
+        console.log('Fetch response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch poll');
+          let errorMessage = `Failed to fetch poll (Status: ${response.status})`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            console.error('Failed to parse error response:', parseError);
+          }
+          throw new Error(errorMessage);
         }
         
         const { poll } = await response.json();
+        console.log('Fetched poll:', poll);
+        
+        if (!poll) {
+          throw new Error('Poll not found');
+        }
         
         // Check if user is authorized to edit this poll
         const { data } = await supabase.auth.getUser();
-        if (data?.user?.id !== poll.user_id) {
+        if (!data?.user) {
+          setError('You must be logged in to edit polls');
+          router.push('/login');
+          return;
+        }
+        
+        if (data.user.id !== poll.user_id) {
           setError('You are not authorized to edit this poll');
           router.push('/my-polls');
           return;
@@ -61,7 +89,14 @@ function EditPollPage({ params }: { params: { id: string } }) {
           description: poll.description || '',
         });
       } catch (err: any) {
-        setError(err.message);
+        console.error('Error fetching poll:', err);
+        
+        let errorMessage = err.message;
+        if (err.name === 'TypeError' && err.message.includes('fetch failed')) {
+          errorMessage = 'Network error: Unable to connect to server. Please check your internet connection and try again.';
+        }
+        
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -75,6 +110,14 @@ function EditPollPage({ params }: { params: { id: string } }) {
     setError(null);
 
     try {
+      console.log('Attempting to update poll with ID:', id);
+      console.log('Update data:', data);
+      
+      // Check if we have a valid ID
+      if (!id) {
+        throw new Error('Invalid poll ID');
+      }
+      
       const response = await fetch(`/api/polls/${id}`, {
         method: 'PUT',
         headers: {
@@ -83,14 +126,35 @@ function EditPollPage({ params }: { params: { id: string } }) {
         body: JSON.stringify(data),
       });
 
+      console.log('Update response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update poll');
+        let errorMessage = `Failed to update poll (Status: ${response.status})`;
+        try {
+          const errorData = await response.json();
+          console.error('Update error response:', errorData);
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+        }
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
+      console.log('Update successful:', result);
       router.push('/my-polls');
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error updating poll:', err);
+      
+      // Provide more specific error messages
+      let errorMessage = err.message;
+      if (err.name === 'TypeError' && err.message.includes('fetch failed')) {
+        errorMessage = 'Network error: Unable to connect to server. Please check your internet connection and try again.';
+      } else if (err.message.includes('Invalid poll ID')) {
+        errorMessage = 'Invalid poll ID. Please try accessing the poll from your polls list.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

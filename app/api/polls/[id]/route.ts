@@ -59,6 +59,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
  */
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = await params;
+  
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return NextResponse.json({ error: 'Invalid poll ID format' }, { status: 400 });
+  }
+  
   const supabase = await createClient();
   
   // Check authentication
@@ -75,7 +82,28 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   
   try {
     const body = await request.json();
-    const { title, description } = body;
+    
+    // Validate input data
+    if (!body.title || typeof body.title !== 'string') {
+      return NextResponse.json({ error: 'Title is required and must be a string' }, { status: 400 });
+    }
+    
+    if (body.title.length < 5) {
+      return NextResponse.json({ error: 'Title must be at least 5 characters' }, { status: 400 });
+    }
+    
+    if (body.title.length > 200) {
+      return NextResponse.json({ error: 'Title must be less than 200 characters' }, { status: 400 });
+    }
+    
+    if (body.description && typeof body.description === 'string' && body.description.length > 1000) {
+      return NextResponse.json({ error: 'Description must be less than 1000 characters' }, { status: 400 });
+    }
+    
+    const { title, description } = {
+      title: body.title.trim(),
+      description: body.description ? body.description.trim() : ''
+    };
     
     // Check ownership
     const { data: existingPoll, error: pollCheckError } = await supabase
@@ -85,6 +113,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       .single();
       
     if (pollCheckError) {
+      if (pollCheckError.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
+      }
+      return NextResponse.json({ error: 'Failed to verify poll ownership' }, { status: 500 });
+    }
+    
+    if (!existingPoll) {
       return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
     }
     
@@ -95,7 +130,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     // Update poll
     const { data: updatedPoll, error: updateError } = await supabase
       .from('polls')
-      .update({ title, description, updated_at: new Date().toISOString() })
+      .update({ 
+        title, 
+        description, 
+        updated_at: new Date().toISOString() 
+      })
       .eq('id', id)
       .select()
       .single();
@@ -108,9 +147,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       message: 'Poll updated successfully',
       poll: updatedPoll
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error updating poll:', error);
     return NextResponse.json(
-      { error: 'Failed to update poll' },
+      { error: 'Failed to update poll', details: error.message },
       { status: 500 }
     );
   }
@@ -122,6 +162,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
  */
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   const { id } = await params;
+  
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return NextResponse.json({ error: 'Invalid poll ID format' }, { status: 400 });
+  }
+  
   const supabase = await createClient();
   
   // Check authentication
@@ -144,6 +191,13 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     .single();
     
   if (pollCheckError) {
+    if (pollCheckError.code === 'PGRST116') {
+      return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: 'Failed to verify poll ownership' }, { status: 500 });
+  }
+  
+  if (!existingPoll) {
     return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
   }
   

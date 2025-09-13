@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/components/ui/toast';
 
 interface Poll {
   id: string;
@@ -24,27 +25,46 @@ interface MyPollsClientProps {
  */
 export default function MyPollsClient({ polls }: MyPollsClientProps) {
   const [pollsList, setPollsList] = useState(polls);
+  const [deletingPollId, setDeletingPollId] = useState<string | null>(null);
+  const { addToast, ToastContainer } = useToast();
 
   const handleDeletePoll = async (id: string) => {
     if (!confirm('Are you sure you want to delete this poll?')) {
       return;
     }
     
+    setDeletingPollId(id);
+    
     try {
+      console.log('Attempting to delete poll with ID:', id);
+      
       const response = await fetch(`/api/polls/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      
+      console.log('Delete response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete poll');
+        console.error('Delete error response:', errorData);
+        throw new Error(errorData.error || `Failed to delete poll (Status: ${response.status})`);
       }
       
       // Remove from local state
       setPollsList(pollsList.filter(poll => poll.id !== id));
+      console.log('Poll deleted successfully');
+      
+      // Show success toast
+      addToast('Poll deleted successfully!', 'success');
+      
     } catch (error) {
       console.error('Error deleting poll:', error);
-      alert('Failed to delete poll. Please try again.');
+      addToast(`Failed to delete poll: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    } finally {
+      setDeletingPollId(null);
     }
   };
 
@@ -67,7 +87,15 @@ export default function MyPollsClient({ polls }: MyPollsClientProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {pollsList.map((poll) => (
-            <Card key={poll.id}>
+            <Card key={poll.id} className={deletingPollId === poll.id ? 'opacity-50 pointer-events-none relative' : ''}>
+              {deletingPollId === poll.id && (
+                <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent mb-2"></div>
+                    <span className="text-sm text-gray-600">Deleting poll...</span>
+                  </div>
+                </div>
+              )}
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
@@ -99,8 +127,13 @@ export default function MyPollsClient({ polls }: MyPollsClientProps) {
                     variant="destructive" 
                     size="icon"
                     onClick={() => handleDeletePoll(poll.id)}
+                    disabled={deletingPollId === poll.id}
                   >
-                    ✕
+                    {deletingPollId === poll.id ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    ) : (
+                      '✕'
+                    )}
                   </Button>
                 </div>
                 <Button asChild variant="ghost" className="w-full">
@@ -111,6 +144,9 @@ export default function MyPollsClient({ polls }: MyPollsClientProps) {
           ))}
         </div>
       )}
+      
+      {/* Toast Container */}
+      <ToastContainer />
     </div>
   );
 }

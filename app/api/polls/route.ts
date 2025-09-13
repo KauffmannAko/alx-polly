@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { validateUserAuthentication, validatePollData, sanitizeInput } from '@/lib/security';
+import { addSecurityHeaders } from '@/lib/headers';
+import { logPollOperation, logUnauthorizedAccess } from '@/lib/logger';
 
 /**
  * GET /api/polls - Get all polls
@@ -33,7 +36,7 @@ export async function GET(request: NextRequest) {
   // Add caching headers
   response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
   
-  return response;
+  return addSecurityHeaders(response);
 }
 
 /**
@@ -43,29 +46,33 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   
-  // Check authentication
-  const { data, error: userError } = await supabase.auth.getUser();
-  const user = data?.user;
+  // Enhanced authentication check
+  const { user, error: authError } = await validateUserAuthentication();
   
-  if (userError) {
-    return NextResponse.json({ error: userError.message }, { status: 500 });
-  }
-
-  if (!user) {
+  if (authError || !user) {
+    logUnauthorizedAccess('unknown', 'polls', 'create', request.headers.get('x-forwarded-for') || 'unknown');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const body = await request.json();
-    const { title, description, options, duration } = body;
-
-    // Validate required fields
-    if (!title || !options || options.length < 2) {
+    
+    // Enhanced validation
+    const validation = validatePollData(body);
+    if (!validation.isValid) {
       return NextResponse.json(
-        { error: 'Invalid poll data. Title and at least 2 options are required.' },
+        { error: 'Invalid poll data', details: validation.errors },
         { status: 400 }
       );
     }
+
+    // Sanitize inputs
+    const { title, description, options, duration } = {
+      title: sanitizeInput(body.title),
+      description: body.description ? sanitizeInput(body.description) : '',
+      options: body.options.map((opt: string) => sanitizeInput(opt)),
+      duration: body.duration
+    };
 
     // Create poll
     const { data: pollData, error: pollError } = await supabase
@@ -99,10 +106,15 @@ export async function POST(request: NextRequest) {
       throw new Error(optionsError.message);
     }
 
-    return NextResponse.json({
+    // Log successful poll creation
+    logPollOperation('create', pollData.id, user.id, { title, optionsCount: options.length });
+
+    const response = NextResponse.json({
       message: 'Poll created successfully',
       poll: pollData,
     }, { status: 201 });
+
+    return addSecurityHeaders(response);
 
   } catch (error: any) {
     return NextResponse.json(
