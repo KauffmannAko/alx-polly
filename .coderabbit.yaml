@@ -1,0 +1,27 @@
+language: en
+
+reviews:
+  profile: "chill"  # Options: "chill", "assertive"
+
+
+request_changes_workflow: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+
+security_scanning:
+  enabled: true
+  scan_dependencies: true
+  scan_secrets: true
+  vulnerability_alerts: true
+  sast_enabled: true
+  
+ai_suggestions:
+    enabled: true
+    features:
+      - code_optimization
+      - security_best_practices
+      - performance_improvements
+      - accessibility_enhancements
+      - test_coverage
