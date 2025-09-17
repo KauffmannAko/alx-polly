@@ -170,6 +170,5 @@ Here are the new features and updates planned for ALX Polly:
 - **Comments & Discussion Threads**: Enable comments and threaded discussions on each poll, with moderation capabilities for admins.
 - **Mobile Responsiveness & Accessibility**: Refactor the UI for seamless mobile experience and improve accessibility (ARIA labels, keyboard navigation, color contrast).
 - **QR Code Generation**: Generate QR codes for individual polls to make sharing easy across devices.
-- **AI-Enhanced Development**: Use AI tools (Copilot, VS Code agents) for code generation, automated testing, and documentation. Feed API specs, file trees, and schema diffs into AI tools for context-aware suggestions.
 
 Stay tuned for these updates! Contributions and feedback are welcome as we build the next generation of ALX Polly.
