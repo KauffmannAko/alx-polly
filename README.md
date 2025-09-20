@@ -244,10 +244,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 Here are the new features and updates planned for ALX Polly:
 
 - **Migrate from Supabase to PostgreSQL**: Move to a dedicated PostgreSQL database for better reliability and scalability, using Prisma ORM for database management.
-- **User Role Management**: Add support for admin and regular user roles, with role-based access control and moderation tools.
-- **Poll Result Charts**: Integrate a charting library (Chart.js or Recharts) to display poll results visually and interactively.
-- **Comments & Discussion Threads**: Enable comments and threaded discussions on each poll, with moderation capabilities for admins.
-- **Mobile Responsiveness & Accessibility**: Refactor the UI for seamless mobile experience and improve accessibility (ARIA labels, keyboard navigation, color contrast).
-- **QR Code Generation**: Generate QR codes for individual polls to make sharing easy across devices.
+- **User Role Management**: Add support for admin and regular user roles, with role-based access control and moderation tools
 
-Stay tuned for these updates! Contributions and feedback are welcome as we build the next generation of ALX Polly.
+- **QR Code Generation**: Generate QR codes for individual polls to make sharing easy across devices.
