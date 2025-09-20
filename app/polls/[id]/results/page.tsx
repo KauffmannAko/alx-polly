@@ -52,56 +52,59 @@ export default async function PollResultsPage({ params }: PollResultsPageProps) 
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card className="max-w-3xl mx-auto">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-2xl">{poll.title}</CardTitle>
-              <CardDescription>{poll.description}</CardDescription>
+    <div className="container mx-auto py-4 sm:py-8 px-4">
+      <Card className="max-w-3xl mx-auto" role="main" aria-labelledby="poll-results-title">
+        <CardHeader className="pb-4 sm:pb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div className="flex-1">
+              <CardTitle id="poll-results-title" className="text-xl sm:text-2xl leading-tight">{poll.title}</CardTitle>
+              <CardDescription className="mt-2 text-sm sm:text-base">{poll.description}</CardDescription>
             </div>
-            <div className="px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+            <div className="px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 self-start" aria-label="Poll results page">
               Results
             </div>
           </div>
-          <div className="text-sm text-muted-foreground mt-2">
+          <div className="text-xs sm:text-sm text-muted-foreground mt-2">
             Created on {new Date(poll.created_at).toLocaleDateString()}
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-2">Poll Results</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+        <CardContent className="px-4 sm:px-6">
+          <div className="mb-4 sm:mb-6">
+            <h3 className="text-base sm:text-lg font-medium mb-2">Poll Results</h3>
+            <p className="text-sm text-muted-foreground mb-4" aria-live="polite">
               Total votes: {poll.totalVotes}
             </p>
           </div>
           
-          <div className="space-y-6">
-            {poll.options.sort((a: any, b: any) => b.votes - a.votes).map((option: any) => (
-              <div key={option.id} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">{option.text}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{option.votes} votes</span>
-                    <span className="text-sm font-bold">{calculatePercentage(option.votes)}%</span>
+          <div className="space-y-4 sm:space-y-6" role="list" aria-label="Poll results by option">
+            {poll.options.sort((a: any, b: any) => b.votes - a.votes).map((option: any, index: number) => (
+              <div key={option.id} className="space-y-2" role="listitem">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <span className="font-medium text-sm sm:text-base leading-tight" id={`result-option-${option.id}`}>{option.text}</span>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm">
+                    <span className="text-muted-foreground sm:text-foreground" aria-label={`${option.votes} votes`}>{option.votes} votes</span>
+                    <span className="font-bold" aria-label={`${calculatePercentage(option.votes)} percent`}>{calculatePercentage(option.votes)}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-muted rounded-full h-3 overflow-hidden" role="progressbar" aria-valuenow={calculatePercentage(option.votes)} aria-valuemin={0} aria-valuemax={100} aria-labelledby={`result-option-${option.id}`} aria-describedby={`result-desc-${option.id}`}>
                   <div 
-                    className="bg-primary h-full" 
+                    className="bg-primary h-full transition-all duration-300" 
                     style={{ width: `${calculatePercentage(option.votes)}%` }}
                   />
+                </div>
+                <div id={`result-desc-${option.id}`} className="sr-only">
+                  {option.text} received {option.votes} votes, which is {calculatePercentage(option.votes)}% of total votes
                 </div>
               </div>
             ))}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button asChild variant="outline">
-            <Link href={`/polls/${id}`}>Back to Poll</Link>
+        <CardFooter className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4 px-4 sm:px-6 pt-4 sm:pt-6">
+          <Button asChild variant="outline" className="w-full sm:w-auto min-h-[44px] text-sm sm:text-base">
+            <Link href={`/polls/${id}`} aria-label={`Back to poll: ${poll.title}`}>Back to Poll</Link>
           </Button>
-          <Button asChild>
-            <Link href="/polls">View All Polls</Link>
+          <Button asChild className="w-full sm:w-auto min-h-[44px] text-sm sm:text-base">
+            <Link href="/polls" aria-label="View all available polls">View All Polls</Link>
           </Button>
         </CardFooter>
       </Card>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { use } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import Loader from '@/components/ui/loader';
  */
 export default function PollDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
+  const router = useRouter();
   const [poll, setPoll] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,13 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
       
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // If user is not authenticated (401 or auth session missing), redirect to login
+        if (response.status === 401 || errorData.error === 'Auth session missing!') {
+          router.push('/login');
+          return;
+        }
+        
         throw new Error(errorData.error || 'Failed to submit vote');
       }
       
@@ -151,44 +160,59 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Card className="max-w-3xl mx-auto">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-2xl">{poll.title}</CardTitle>
-              <CardDescription>{poll.description}</CardDescription>
+    <div className="container mx-auto py-4 sm:py-8 px-4">
+      <Card className="max-w-3xl mx-auto" role="main" aria-labelledby="poll-title">
+        <CardHeader className="pb-4 sm:pb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div className="flex-1">
+              <CardTitle id="poll-title" className="text-xl sm:text-2xl leading-tight">{poll.title}</CardTitle>
+              <CardDescription className="mt-2 text-sm sm:text-base">{poll.description}</CardDescription>
             </div>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/polls/${id}/results`}>View Results</Link>
+            <Button asChild variant="outline" size="sm" className="self-start">
+              <Link href={`/polls/${id}/results`} aria-label={`View detailed results for ${poll.title}`}>View Results</Link>
             </Button>
           </div>
-          <div className="text-sm text-muted-foreground mt-2">
+          <div className="text-xs sm:text-sm text-muted-foreground mt-2">
             Created on {new Date(poll.created_at).toLocaleDateString()}
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {poll.options.map((option: any) => (
+        <CardContent className="px-4 sm:px-6">
+          <div className="space-y-3 sm:space-y-4" role="radiogroup" aria-labelledby="poll-title" aria-describedby="poll-instructions">
+            <div id="poll-instructions" className="sr-only">
+              {hasVoted ? 'Poll results are displayed below' : 'Select an option to vote'}
+            </div>
+            {poll.options.map((option: any, index: number) => (
               <div 
                 key={option.id} 
-                className={`border rounded-lg p-4 cursor-pointer transition-colors ${hasVoted ? 'cursor-default' : ''} ${
+                className={`border rounded-lg p-3 sm:p-4 transition-all duration-200 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 ${
+                  hasVoted ? 'cursor-default' : 'cursor-pointer hover:border-primary/50'
+                } ${
                   selectedOption === option.id && !hasVoted ? 'border-primary bg-primary/5' : ''
                 }`}
                 onClick={() => !hasVoted && setSelectedOption(option.id)}
+                role={hasVoted ? 'article' : 'radio'}
+                aria-checked={hasVoted ? undefined : selectedOption === option.id}
+                aria-labelledby={`option-${option.id}-text`}
+                tabIndex={hasVoted ? -1 : 0}
+                onKeyDown={(e) => {
+                  if (!hasVoted && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    setSelectedOption(option.id);
+                  }
+                }}
               >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium">{option.text}</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <span id={`option-${option.id}-text`} className="font-medium text-sm sm:text-base leading-tight">{option.text}</span>
                   {hasVoted && (
-                    <span className="text-sm font-medium">
+                    <span className="text-xs sm:text-sm font-medium text-muted-foreground sm:text-foreground" aria-label={`${calculatePercentage(option.votes)} percent of votes`}>
                       {calculatePercentage(option.votes)}%
                     </span>
                   )}
                 </div>
                 {hasVoted && (
-                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-muted rounded-full h-2 mt-2 overflow-hidden" role="progressbar" aria-valuenow={calculatePercentage(option.votes)} aria-valuemin={0} aria-valuemax={100} aria-label={`${option.text}: ${calculatePercentage(option.votes)}% of votes`}>
                     <div 
-                      className="bg-primary h-full" 
+                      className="bg-primary h-full transition-all duration-300" 
                       style={{ width: `${calculatePercentage(option.votes)}%` }}
                     />
                   </div>
@@ -197,23 +221,29 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
             ))}
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col items-start gap-4 w-full">
+        <CardFooter className="flex flex-col items-start gap-4 w-full px-4 sm:px-6 pt-4 sm:pt-6">
           {!hasVoted ? (
             <Button 
               onClick={handleVote} 
               disabled={!selectedOption || isSubmitting}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto min-h-[44px] text-sm sm:text-base"
+              aria-describedby={!selectedOption ? 'vote-error' : undefined}
             >
               {isSubmitting ? 'Submitting...' : 'Submit Vote'}
             </Button>
           ) : (
-            <div className="flex justify-between w-full items-center">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:justify-between w-full items-start sm:items-center gap-3 sm:gap-4">
+              <div className="text-sm text-muted-foreground" aria-live="polite">
                 Total votes: {poll.totalVotes}
               </div>
-              <Button asChild variant="secondary">
-                <Link href={`/polls/${id}/results`}>See Detailed Results</Link>
+              <Button asChild variant="secondary" className="w-full sm:w-auto">
+                <Link href={`/polls/${id}/results`} aria-label={`See detailed results for ${poll.title}`}>See Detailed Results</Link>
               </Button>
+            </div>
+          )}
+          {!hasVoted && !selectedOption && (
+            <div id="vote-error" className="sr-only" aria-live="polite">
+              Please select an option before submitting your vote
             </div>
           )}
         </CardFooter>

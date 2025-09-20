@@ -88,31 +88,37 @@ function CreatePollPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-6 md:py-8 px-4">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl">Create a New Poll</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Create a New Poll</CardTitle>
           <CardDescription>
             Fill out the form below to create your poll
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {error && <p className="text-red-500">{error}</p>}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" role="form" aria-labelledby="create-poll-title">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md" role="alert" aria-live="polite">
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Poll Question</FormLabel>
+                    <FormLabel className="text-sm font-medium">Poll Question *</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="What's your favorite programming language?"
+                        className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        aria-describedby={form.formState.errors.title ? "title-error" : undefined}
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage id="title-error" />
                   </FormItem>
                 )}
               />
@@ -122,10 +128,11 @@ function CreatePollPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormLabel className="text-sm font-medium">Description (Optional)</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Provide additional context for your poll"
+                        className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         {...field}
                       />
                     </FormControl>
@@ -134,14 +141,17 @@ function CreatePollPage() {
                 )}
               />
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <FormLabel>Options</FormLabel>
+              <fieldset className="space-y-4">
+                <legend className="sr-only">Poll Options</legend>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <FormLabel className="text-sm font-medium">Options *</FormLabel>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={handleAddOption}
+                    className="focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 w-full sm:w-auto"
+                    aria-label="Add new poll option"
                   >
                     Add Option
                   </Button>
@@ -153,6 +163,8 @@ function CreatePollPage() {
                       value={option}
                       onChange={(e) => handleOptionChange(index, e.target.value)}
                       placeholder={`Option ${index + 1}`}
+                      className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex-1"
+                      aria-label={`Poll option ${index + 1}`}
                       required
                     />
                     {options.length > 2 && (
@@ -161,24 +173,27 @@ function CreatePollPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleRemoveOption(index)}
+                        className="focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shrink-0"
+                        aria-label={`Remove option ${index + 1}`}
                       >
-                        ✕
+                        <span aria-hidden="true">✕</span>
                       </Button>
                     )}
                   </div>
                 ))}
-              </div>
+              </fieldset>
 
               <FormField
                 control={form.control}
                 name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duration</FormLabel>
+                    <FormLabel className="text-sm font-medium">Duration *</FormLabel>
                     <FormControl>
                       <select
                         {...field}
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        aria-label="Select poll duration"
                       >
                         <option value="1">1 day</option>
                         <option value="3">3 days</option>
@@ -193,11 +208,15 @@ function CreatePollPage() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 disabled={isSubmitting || options.some(opt => !opt.trim())}
+                aria-describedby="submit-help"
               >
                 {isSubmitting ? 'Creating Poll...' : 'Create Poll'}
               </Button>
+              <p id="submit-help" className="text-xs text-gray-500 text-center">
+                All fields marked with * are required
+              </p>
             </form>
           </Form>
         </CardContent>

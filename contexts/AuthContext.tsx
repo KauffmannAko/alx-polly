@@ -24,14 +24,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const supabase = createClient()
     
-    // Get current session on mount
+    // Get current user on mount (secure method)
     const getUser = async () => {
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session) {
-        setUser(session.user)
-      }
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUser(user)
       setLoading(false)
     }
 
@@ -40,7 +38,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth state changes (login/logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null)
+        // Use getUser() instead of relying on session.user for security
+        if (session) {
+          const { data: { user } } = await supabase.auth.getUser()
+          setUser(user)
+        } else {
+          setUser(null)
+        }
         setLoading(false)
       }
     )

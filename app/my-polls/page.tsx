@@ -19,7 +19,7 @@ export default async function MyPollsPage() {
     redirect('/login');
   }
 
-  // Optimized query: Get user's polls with options and vote counts
+  // Optimized query: Get user's polls with options, vote counts, and moderation status
   const { data: pollsData, error } = await supabase
     .from('polls')
     .select(`
