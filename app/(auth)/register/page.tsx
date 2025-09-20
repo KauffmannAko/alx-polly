@@ -53,22 +53,35 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          full_name: data.name,
+    
+    try {
+      console.log('Attempting to register user:', data.email);
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.name,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push('/');
+      if (error) {
+        console.error('Registration error:', error);
+        setError(error.message);
+      } else {
+        console.log('Registration successful:', authData.user?.email);
+        // Wait a bit for auth state to update
+        setTimeout(() => {
+          router.push('/');
+        }, 100);
+      }
+    } catch (err) {
+      console.error('Unexpected registration error:', err);
+      setError('An unexpected error occurred during registration');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

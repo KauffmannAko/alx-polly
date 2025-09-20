@@ -36,17 +36,30 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+    
+    try {
+      console.log('Attempting to sign in with:', data.email);
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push('/');
+      if (error) {
+        console.error('Login error:', error);
+        setError(error.message);
+      } else {
+        console.log('Login successful:', authData);
+        // Wait a moment for the auth state to update
+        setTimeout(() => {
+          router.push('/');
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Unexpected login error:', error);
+      setError('An unexpected error occurred during login');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

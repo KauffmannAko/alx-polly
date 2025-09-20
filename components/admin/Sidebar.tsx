@@ -13,7 +13,7 @@ import {
   LogOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 const navigation = [
@@ -50,8 +50,21 @@ export function Sidebar() {
   const supabase = createClient()
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+    try {
+      console.log('Admin attempting to sign out...');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Admin logout error:', error);
+        // Still redirect even if there's an error to clear local state
+      } else {
+        console.log('Admin successfully signed out');
+      }
+      router.push('/');
+    } catch (error) {
+      console.error('Unexpected admin logout error:', error);
+      // Force redirect to clear any stuck state
+      router.push('/');
+    }
   }
 
   return (

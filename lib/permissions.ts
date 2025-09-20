@@ -51,7 +51,7 @@ export function hasAllPermissions(userRole: UserRole, permissions: Permission[])
  * Get current user's profile with role information
  */
 export async function getCurrentUserProfile(): Promise<UserProfile | null> {
-  const supabase = createClient(cookies());
+  const supabase = await createClient();
   
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {

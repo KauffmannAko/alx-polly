@@ -61,8 +61,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
+  // Add debug logging for auth state
+  console.log(`Middleware: ${pathname}, User: ${user?.email || 'none'}, Auth Error: ${authError?.message || 'none'}`)
+
   // Helper function to redirect with proper response handling
   const redirectTo = (url: string) => {
+    console.log(`Middleware redirecting to: ${url}`)
     const redirectResponse = NextResponse.redirect(new URL(url, request.url))
     // Copy cookies from original response to redirect response
     response.cookies.getAll().forEach(cookie => {
@@ -221,8 +225,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
+     * - public assets (SVG, images, etc.)
+     * - Chrome DevTools and browser requests
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.svg$|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.gif$|.*\\.ico$|\\.well-known).*)',
   ],
 }

@@ -38,11 +38,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth state changes (login/logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email || 'no user');
         // Use getUser() instead of relying on session.user for security
         if (session) {
           const { data: { user } } = await supabase.auth.getUser()
+          console.log('Setting user from session:', user?.email);
           setUser(user)
         } else {
+          console.log('No session, clearing user');
           setUser(null)
         }
         setLoading(false)

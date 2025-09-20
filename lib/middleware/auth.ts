@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase-server';
 import { cookies } from 'next/headers';
 import { UserRole, Permission } from '@/types';
 import { hasPermission } from '@/lib/permissions';
@@ -46,7 +46,7 @@ export async function authMiddleware(
 
     // Get user profile with role information
     const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
+      .from<any>('user_profiles')
       .select('*')
       .eq('user_id', user.id)
       .single();

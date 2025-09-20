@@ -1,9 +1,9 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
 import { UserRole, UserProfile } from '@/types'
-import { requireAdmin, requirePermission } from '@/lib/permissions'
+import { requireAdmin, requirePermission, isCurrentUserAdmin } from '@/lib/permissions'
 import { Permission } from '@/types'
 import { revalidatePath } from 'next/cache'
 
@@ -37,41 +37,49 @@ export async function getAllUsers(): Promise<{
   try {
     await requireAdmin()
     
-    const supabase = createClient(cookies())
+    const supabase = await createClient()
     
-    // Get users from auth.users and their profiles
+    // Get user profiles first
     const { data: profiles, error: profilesError } = await supabase
       .from('user_profiles')
-      .select(`
-        *,
-        user:user_id (
-          email,
-          user_metadata
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
     
     if (profilesError) {
       console.error('Error fetching users:', profilesError)
       return { success: false, error: 'Failed to fetch users' }
     }
+
+    // Get auth users data separately using service role
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
     
-    const users = profiles?.map(profile => ({
-      id: profile.user_id,
-      email: profile.user?.email || '',
-      name: profile.user?.user_metadata?.name || profile.user?.user_metadata?.full_name || '',
-      profile: {
-        id: profile.id,
-        userId: profile.user_id,
-        role: profile.role as UserRole,
-        isActive: profile.is_active,
-        bannedAt: profile.banned_at,
-        bannedBy: profile.banned_by,
-        banReason: profile.ban_reason,
-        createdAt: profile.created_at,
-        updatedAt: profile.updated_at,
+    if (authError) {
+      console.error('Error fetching auth users:', authError)
+      return { success: false, error: 'Failed to fetch auth users' }
+    }
+
+    // Create a map of auth users for quick lookup
+    const authUserMap = new Map(authUsers.users.map(user => [user.id, user]))
+    
+    const users = profiles?.map(profile => {
+      const authUser = authUserMap.get(profile.user_id)
+      return {
+        id: profile.user_id,
+        email: authUser?.email || 'Unknown',
+        name: authUser?.user_metadata?.name || authUser?.user_metadata?.full_name || '',
+        profile: {
+          id: profile.id,
+          userId: profile.user_id,
+          role: profile.role as UserRole,
+          isActive: profile.is_active,
+          bannedAt: profile.banned_at,
+          bannedBy: profile.banned_by,
+          banReason: profile.ban_reason,
+          createdAt: profile.created_at,
+          updatedAt: profile.updated_at,
+        }
       }
-    })) || []
+    }) || []
     
     return { success: true, data: users }
   } catch (error) {
@@ -86,177 +94,143 @@ export async function getAllUsers(): Promise<{
 /**
  * Update user role (Admin only)
  */
-export async function updateUserRole(data: UpdateUserRoleData): Promise<{
-  success: boolean
-  error?: string
-}> {
+export async function updateUserRole(data: UpdateUserRoleData): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin()
     
-    const supabase = createClient(cookies())
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const supabase = await createClient()
     
-    if (!currentUser) {
-      return { success: false, error: 'Not authenticated' }
-    }
-    
-    // Prevent self-demotion
-    if (currentUser.id === data.userId && data.role !== UserRole.ADMIN) {
-      return { success: false, error: 'Cannot change your own role' }
-    }
-    
+    // Update user role in user_profiles table
     const { error } = await supabase
       .from('user_profiles')
-      .update({ 
-        role: data.role,
-        updated_at: new Date().toISOString()
-      })
+      .update({ role: data.role })
       .eq('user_id', data.userId)
     
     if (error) {
       console.error('Error updating user role:', error)
-      return { success: false, error: 'Failed to update user role' }
+      return { success: false, error: error.message }
     }
     
     revalidatePath('/admin/users')
     return { success: true }
   } catch (error) {
     console.error('Error in updateUserRole:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to update user role' 
-    }
+    return { success: false, error: 'Failed to update user role' }
   }
 }
 
-/**
- * Ban a user (Admin only)
- */
-export async function banUser(data: BanUserData): Promise<{
-  success: boolean
-  error?: string
-}> {
+export async function banUser(data: BanUserData): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePermission(Permission.BAN_USERS)
+    await requireAdmin()
     
-    const supabase = createClient(cookies())
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const supabase = await createClient()
     
-    if (!currentUser) {
-      return { success: false, error: 'Not authenticated' }
-    }
-    
-    // Prevent self-ban
-    if (currentUser.id === data.userId) {
-      return { success: false, error: 'Cannot ban yourself' }
-    }
-    
+    // Update user status to banned
     const { error } = await supabase
       .from('user_profiles')
       .update({ 
         is_active: false,
-        banned_at: new Date().toISOString(),
-        banned_by: currentUser.id,
         ban_reason: data.reason,
-        updated_at: new Date().toISOString()
+        banned_at: new Date().toISOString()
       })
       .eq('user_id', data.userId)
     
     if (error) {
       console.error('Error banning user:', error)
-      return { success: false, error: 'Failed to ban user' }
+      return { success: false, error: error.message }
     }
     
     revalidatePath('/admin/users')
     return { success: true }
   } catch (error) {
     console.error('Error in banUser:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to ban user' 
-    }
+    return { success: false, error: 'Failed to ban user' }
   }
 }
 
-/**
- * Unban a user (Admin only)
- */
-export async function unbanUser(data: UnbanUserData): Promise<{
-  success: boolean
-  error?: string
-}> {
+export async function unbanUser(data: UnbanUserData): Promise<{ success: boolean; error?: string }> {
   try {
-    await requirePermission(Permission.BAN_USERS)
+    await requireAdmin()
     
-    const supabase = createClient(cookies())
+    const supabase = await createClient()
     
+    // Update user status to active
     const { error } = await supabase
       .from('user_profiles')
       .update({ 
         is_active: true,
-        banned_at: null,
-        banned_by: null,
         ban_reason: null,
-        updated_at: new Date().toISOString()
+        banned_at: null
       })
       .eq('user_id', data.userId)
     
     if (error) {
       console.error('Error unbanning user:', error)
-      return { success: false, error: 'Failed to unban user' }
+      return { success: false, error: error.message }
     }
     
     revalidatePath('/admin/users')
     return { success: true }
   } catch (error) {
     console.error('Error in unbanUser:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to unban user' 
-    }
+    return { success: false, error: 'Failed to unban user' }
   }
 }
 
-/**
- * Get user statistics (Admin only)
- */
 export async function getUserStats(): Promise<{
-  success: boolean
-  data?: {
-    totalUsers: number
-    activeUsers: number
-    bannedUsers: number
-    adminUsers: number
-  }
-  error?: string
-}> {
+  totalUsers: number
+  activeUsers: number
+  bannedUsers: number
+  adminUsers: number
+  totalPolls: number
+  totalComments: number
+  totalVotes: number
+} | null> {
   try {
-    await requireAdmin()
+    // Check if user is authenticated and is admin
+    const supabase = await createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    const supabase = createClient(cookies())
-    
-    const { data: profiles, error } = await supabase
-      .from('user_profiles')
-      .select('role, is_active')
-    
-    if (error) {
-      console.error('Error fetching user stats:', error)
-      return { success: false, error: 'Failed to fetch user statistics' }
+    if (userError || !user) {
+      throw new Error('User not authenticated')
     }
     
-    const stats = {
-      totalUsers: profiles?.length || 0,
-      activeUsers: profiles?.filter(p => p.is_active).length || 0,
-      bannedUsers: profiles?.filter(p => !p.is_active).length || 0,
-      adminUsers: profiles?.filter(p => p.role === UserRole.ADMIN).length || 0,
+    // Check if user is admin
+    const isAdmin = await isCurrentUserAdmin()
+    if (!isAdmin) {
+      throw new Error('Insufficient permissions')
     }
     
-    return { success: true, data: stats }
+    // Fetch user statistics
+    const [
+      { count: totalUsers },
+      { count: activeUsers },
+      { count: bannedUsers },
+      { count: adminUsers },
+      { count: totalPolls },
+      { count: totalComments },
+      { count: totalVotes }
+    ] = await Promise.all([
+      supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('is_active', false),
+      supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+      supabase.from('polls').select('*', { count: 'exact', head: true }),
+      supabase.from('comments').select('*', { count: 'exact', head: true }),
+      supabase.from('votes').select('*', { count: 'exact', head: true })
+    ])
+    
+    return {
+      totalUsers: totalUsers || 0,
+      activeUsers: activeUsers || 0,
+      bannedUsers: bannedUsers || 0,
+      adminUsers: adminUsers || 0,
+      totalPolls: totalPolls || 0,
+      totalComments: totalComments || 0,
+      totalVotes: totalVotes || 0
+    }
   } catch (error) {
-    console.error('Error in getUserStats:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to fetch user statistics' 
-    }
+    console.error('Error fetching user stats:', error)
+    return null
   }
 }

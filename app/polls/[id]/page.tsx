@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase';
 import Loader from '@/components/ui/loader';
+import { CommentsSection } from '@/components/comments/CommentsSection';
+import { getThreadedComments } from '@/lib/actions/comments';
 
 /**
  * Poll Detail Page - Display poll and handle voting
@@ -18,6 +20,8 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
   const [poll, setPoll] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [comments, setComments] = useState<any[]>([]);
   const supabase = createClient();
 
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -29,6 +33,19 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
     async function fetchPollData() {
       try {
         setLoading(true);
+        
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Fetch user profile if logged in
+        if (user) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          setUserProfile(profile);
+        }
         
         // Optimized query: Get poll with options and vote counts in one query
         const { data: pollData, error: pollError } = await supabase
@@ -48,17 +65,21 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
         if (!pollData) {
           throw new Error('Poll not found');
         }
-        
+
         // Count votes per option
         const voteCount: Record<string, number> = {};
         const totalVotes = pollData.votes?.length || 0;
+        let userHasVoted = false;
         
         pollData.votes?.forEach((vote: any) => {
           voteCount[vote.option_id] = (voteCount[vote.option_id] || 0) + 1;
+          if (user && vote.user_id === user.id) {
+            userHasVoted = true;
+          }
         });
         
         // Add vote counts to options
-        const pollWithVotes = {
+        const processedPoll = {
           ...pollData,
           options: pollData.options?.map((option: any) => ({
             ...option,
@@ -67,25 +88,24 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
           totalVotes
         };
         
-        setPoll(pollWithVotes);
-        
-        // Check if user already voted
-        const { data: user } = await supabase.auth.getUser();
-        if (user?.user) {
-          const userVote = pollData.votes?.find((vote: any) => vote.user_id === user.user.id);
-          if (userVote) {
-            setUserVoted(true);
-            setHasVoted(true);
-          }
+        setPoll(processedPoll);
+        setHasVoted(userHasVoted);
+        setUserVoted(userHasVoted);
+
+        // Fetch comments for this poll
+        const commentsResult = await getThreadedComments(id);
+        if (commentsResult.success) {
+          setComments(commentsResult.data || []);
         }
-      } catch (err: any) {
+        
+      } catch (err) {
         console.error('Error fetching poll data:', err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
       }
     }
-    
+
     fetchPollData();
   }, [id, supabase]);
 
@@ -247,7 +267,19 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
             </div>
           )}
         </CardFooter>
-      </Card>
-    </div>
-  );
-}
+       </Card>
+       
+       {/* Comments Section */}
+       <div className="max-w-3xl mx-auto mt-8">
+         <CommentsSection 
+           pollId={id}
+           isLoggedIn={!!userProfile}
+           currentUserId={userProfile?.user_id}
+           currentUserRole={userProfile?.role}
+           userEmail={userProfile?.email}
+           userName={userProfile?.name || userProfile?.email}
+         />
+       </div>
+     </div>
+   );
+ }

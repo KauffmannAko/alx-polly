@@ -17,8 +17,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Menu, X, Shield, Settings } from 'lucide-react';
-import { UserRole, UserProfile } from '@/types';
+import { Menu, X, Shield, Settings, MessageSquare } from 'lucide-react';
+import { UserRole, UserProfile, Permission } from '@/types';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -40,14 +40,21 @@ export function Navbar() {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // Use the new client profile utility with fallback
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
-      if (data && !error) {
-        setUserProfile(data);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          setUserProfile(data.profile);
+        }
+      } else {
+        console.error('Failed to fetch user profile:', response.status);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -55,12 +62,48 @@ export function Navbar() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
+    console.log('Current user before logout:', user?.email);
+    console.log('Starting logout process...');
+    
+    // Immediately clear local auth state first
+    if (typeof window !== 'undefined') {
+      console.log('Clearing local storage and cookies...');
+      
+      // Clear all localStorage items that contain 'supabase'
+      Object.keys(localStorage).forEach(key => {
+        if (key.includes('supabase')) {
+          localStorage.removeItem(key);
+          console.log(`Cleared localStorage: ${key}`);
+        }
+      });
+      
+      // Clear all cookies that contain 'supabase' or 'auth'
+      document.cookie.split(";").forEach(cookie => {
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        if (name.includes('supabase') || name.includes('auth') || name.includes('sb-')) {
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          console.log(`Cleared cookie: ${name}`);
+        }
+      });
+    }
+    
+    // Try Supabase signOut in the background (don't wait for it)
+    supabase.auth.signOut().then(() => {
+      console.log('Supabase signOut completed successfully');
+    }).catch((error) => {
+      console.log('Supabase signOut failed (but local state already cleared):', error);
+    });
+    
+    console.log('Redirecting to home page...');
+    // Force a hard refresh to ensure auth state is completely reset
+    window.location.href = '/';
   };
 
   const isAdmin = userProfile?.role === UserRole.ADMIN && userProfile?.isActive;
   const canCreatePoll = userProfile?.isActive;
+  const canModerateComments = userProfile?.role === UserRole.ADMIN && userProfile?.isActive;
 
   return (
     <header className="border-b bg-background sticky top-0 z-50">
@@ -94,6 +137,16 @@ export function Navbar() {
               >
                 <Settings className="h-4 w-4" />
                 Admin
+              </Link>
+            )}
+            {canModerateComments && (
+              <Link
+                href="/admin/comments"
+                className={`text-sm font-medium transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm px-2 py-1 flex items-center gap-1 ${pathname === '/admin/comments' ? 'text-primary' : 'text-muted-foreground'}`}
+                aria-current={pathname === '/admin/comments' ? 'page' : undefined}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Moderate Comments
               </Link>
             )}
           </nav>
@@ -158,6 +211,14 @@ export function Navbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/my-polls" className="focus:outline-none">My Polls</Link>
                 </DropdownMenuItem>
+                {canModerateComments && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/comments" className="focus:outline-none flex items-center">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Moderate Comments
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
@@ -226,6 +287,17 @@ export function Navbar() {
                 >
                   <Settings className="h-4 w-4" />
                   Admin Panel
+                </Link>
+              )}
+              {canModerateComments && (
+                <Link
+                  href="/admin/comments"
+                  className={`block text-sm font-medium transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-sm px-2 py-2 flex items-center gap-2 ${pathname === '/admin/comments' ? 'text-primary' : 'text-muted-foreground'}`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  aria-current={pathname === '/admin/comments' ? 'page' : undefined}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Moderate Comments
                 </Link>
               )}
               {!user && (
